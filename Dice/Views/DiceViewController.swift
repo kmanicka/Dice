@@ -33,6 +33,11 @@ class DiceViewController: UIViewController {
     private var soundEnabled: Bool = true
     private var hapticsEnabled: Bool = true
 
+    // Result display
+    private var resultLabel: UILabel!
+    private var firstLaunch: Bool = true
+    private var tooltipLabel: UILabel!
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -55,6 +60,14 @@ class DiceViewController: UIViewController {
 
         // Setup haptics
         setupHaptics()
+
+        // Setup result display
+        setupResultDisplay()
+
+        // Setup first-time tooltip
+        if firstLaunch {
+            setupTooltip()
+        }
     }
 
     // MARK: - Bottom Bar Setup
@@ -88,10 +101,16 @@ class DiceViewController: UIViewController {
         throwButton.backgroundColor = AppColors.primaryBlue
         throwButton.setTitleColor(.white, for: .normal)
         throwButton.layer.cornerRadius = 25
+
+        // Enhanced shadow for depth
         throwButton.layer.shadowColor = UIColor.black.cgColor
-        throwButton.layer.shadowOffset = CGSize(width: 0, height: 2)
-        throwButton.layer.shadowRadius = 4
-        throwButton.layer.shadowOpacity = 0.3
+        throwButton.layer.shadowOffset = CGSize(width: 0, height: 4)
+        throwButton.layer.shadowRadius = 8
+        throwButton.layer.shadowOpacity = 0.4
+
+        // Subtle border for definition
+        throwButton.layer.borderWidth = 0.5
+        throwButton.layer.borderColor = UIColor.white.withAlphaComponent(0.2).cgColor
 
         // Position in bottom bar (centered)
         let buttonWidth: CGFloat = 120
@@ -315,6 +334,71 @@ class DiceViewController: UIViewController {
         impactGenerator?.prepare()
     }
 
+    private func setupResultDisplay() {
+        // Create large result number display
+        resultLabel = UILabel()
+        resultLabel.font = UIFont.systemFont(ofSize: 96, weight: .bold)
+        resultLabel.textColor = .white
+        resultLabel.textAlignment = .center
+        resultLabel.alpha = 0
+        resultLabel.layer.shadowColor = UIColor.black.cgColor
+        resultLabel.layer.shadowOffset = CGSize(width: 0, height: 4)
+        resultLabel.layer.shadowRadius = 8
+        resultLabel.layer.shadowOpacity = 0.5
+
+        resultLabel.frame = CGRect(x: 0, y: view.bounds.height / 3, width: view.bounds.width, height: 120)
+        resultLabel.autoresizingMask = [.flexibleWidth, .flexibleBottomMargin]
+
+        view.addSubview(resultLabel)
+        print("🎯 Result display created")
+    }
+
+    private func setupTooltip() {
+        // Create tooltip for first-time users
+        tooltipLabel = UILabel()
+        tooltipLabel.text = "👆 Tap or flick dice to roll"
+        tooltipLabel.font = UIFont.systemFont(ofSize: 16, weight: .medium)
+        tooltipLabel.textColor = UIColor.white.withAlphaComponent(0.8)
+        tooltipLabel.textAlignment = .center
+        tooltipLabel.backgroundColor = UIColor.black.withAlphaComponent(0.6)
+        tooltipLabel.layer.cornerRadius = 12
+        tooltipLabel.clipsToBounds = true
+
+        let tooltipWidth: CGFloat = 250
+        let tooltipHeight: CGFloat = 44
+        tooltipLabel.frame = CGRect(
+            x: (view.bounds.width - tooltipWidth) / 2,
+            y: view.bounds.height / 2 - 50,
+            width: tooltipWidth,
+            height: tooltipHeight
+        )
+        tooltipLabel.autoresizingMask = [.flexibleLeftMargin, .flexibleRightMargin, .flexibleTopMargin, .flexibleBottomMargin]
+
+        view.addSubview(tooltipLabel)
+
+        // Fade out after 3 seconds
+        UIView.animate(withDuration: 0.5, delay: 3.0, options: .curveEaseOut) {
+            self.tooltipLabel.alpha = 0
+        } completion: { _ in
+            self.tooltipLabel.removeFromSuperview()
+            self.firstLaunch = false
+        }
+
+        print("💬 First-time tooltip displayed")
+    }
+
+    func showResult(_ number: Int) {
+        resultLabel.text = "\(number)"
+
+        UIView.animate(withDuration: 0.5, delay: 0.3, options: .curveEaseIn) {
+            self.resultLabel.alpha = 1.0
+        } completion: { _ in
+            UIView.animate(withDuration: 0.5, delay: 2.0, options: .curveEaseOut) {
+                self.resultLabel.alpha = 0
+            }
+        }
+    }
+
     @objc private func buttonTouchDown() {
         throwButton.backgroundColor = AppColors.primaryBlueDark
         throwButton.transform = CGAffineTransform(scaleX: 0.95, y: 0.95)
@@ -419,6 +503,16 @@ class DiceViewController: UIViewController {
         // Initialize and set the dice scene
         diceScene = DiceScene()
         scnView.scene = diceScene.scene
+
+        // Setup result callbacks for all dice
+        for dice in diceScene.diceNodes {
+            dice.onSettled = { [weak self] result in
+                self?.showResult(result)
+            }
+        }
+
+        // Start idle animation
+        diceScene.startIdleAnimation()
 
         print("📊 Scene has \(diceScene.scene.rootNode.childNodes.count) child nodes")
         print("🎲 Dice node exists: \(diceScene.diceNode != nil)")

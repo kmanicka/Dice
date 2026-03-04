@@ -23,6 +23,9 @@ class DiceNode: SCNNode {
     private var isResting = false
     private var restTimer: Timer?
 
+    // Callback for when dice settles
+    var onSettled: ((Int) -> Void)?
+
     override init() {
         super.init()
 
@@ -185,6 +188,7 @@ class DiceNode: SCNNode {
 
         if let topFace = getCurrentTopFace() {
             print("🎲 Dice rolled: \(topFace)")
+            onSettled?(topFace)
         }
     }
 

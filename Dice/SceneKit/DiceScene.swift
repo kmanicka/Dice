@@ -15,6 +15,7 @@ class DiceScene {
     var diceNodes: [DiceNode] = []  // All dice nodes
     private var cameraNode: SCNNode!
     private var floorNode: SCNNode!
+    private var platformNode: SCNNode!  // Visual platform under dice
     private(set) var activeDiceCount: Int = 1  // Current number of active dice
 
     init() {
@@ -27,6 +28,8 @@ class DiceScene {
         print("💡 Lighting setup complete")
         setupFloor()
         print("🟫 Floor setup complete")
+        setupPlatform()
+        print("🎯 Platform setup complete")
         setupDice()
         print("🎲 Dice setup complete")
         setupPhysicsWorld()
@@ -90,7 +93,21 @@ class DiceScene {
         ambientLightNode.light = ambientLight
         scene.rootNode.addChildNode(ambientLightNode)
 
-        print("💡 Soft lighting setup complete (reduced intensity, high ambient)")
+        // Add rim light for edge definition and depth
+        let rimLight = SCNLight()
+        rimLight.type = .spot
+        rimLight.intensity = 400
+        rimLight.color = UIColor(red: 0.9, green: 0.95, blue: 1.0, alpha: 1.0)
+        rimLight.spotInnerAngle = 30
+        rimLight.spotOuterAngle = 45
+
+        let rimLightNode = SCNNode()
+        rimLightNode.light = rimLight
+        rimLightNode.position = SCNVector3(-2, 6, -4)
+        rimLightNode.look(at: SCNVector3(0, 0.75, 0))  // Look at dice height
+        scene.rootNode.addChildNode(rimLightNode)
+
+        print("💡 Enhanced lighting setup complete (3-point + rim)")
     }
 
     private func setupFloor() {
@@ -118,6 +135,42 @@ class DiceScene {
 
         // Create transparent bounding box
         setupTrayWalls()
+    }
+
+    private func setupPlatform() {
+        // Create visible circular platform under dice for visual reference
+        let platformGeometry = SCNCylinder(radius: 2.5, height: 0.05)
+
+        // Semi-transparent white material with subtle glow
+        let platformMaterial = SCNMaterial()
+        platformMaterial.diffuse.contents = UIColor(white: 1.0, alpha: 0.08)
+        platformMaterial.emission.contents = UIColor(white: 1.0, alpha: 0.05)
+        platformMaterial.lightingModel = .physicallyBased
+        platformMaterial.roughness.contents = 0.3
+        platformMaterial.metalness.contents = 0.1
+        platformMaterial.transparencyMode = .aOne
+
+        platformGeometry.materials = [platformMaterial]
+
+        platformNode = SCNNode(geometry: platformGeometry)
+        platformNode.position = SCNVector3(0, 0.01, 0)  // Just above floor
+        platformNode.categoryBitMask = 0  // Don't participate in hit tests
+
+        // Add subtle edge glow
+        let edgeTorus = SCNTorus(ringRadius: 2.5, pipeRadius: 0.02)
+        let edgeMaterial = SCNMaterial()
+        edgeMaterial.emission.contents = UIColor(white: 1.0, alpha: 0.3)
+        edgeTorus.materials = [edgeMaterial]
+
+        let edgeNode = SCNNode(geometry: edgeTorus)
+        edgeNode.position = SCNVector3(0, 0.025, 0)
+        edgeNode.eulerAngles = SCNVector3(Float.pi / 2, 0, 0)  // Rotate to horizontal
+        edgeNode.categoryBitMask = 0
+
+        scene.rootNode.addChildNode(platformNode)
+        scene.rootNode.addChildNode(edgeNode)
+
+        print("🎯 Circular platform created (5.0 diameter) at y=0.01")
     }
 
     private func setupTrayWalls() {
@@ -242,6 +295,17 @@ class DiceScene {
     }
 
     // MARK: - Public Methods
+
+    func startIdleAnimation() {
+        // Subtle platform glow pulse
+        let pulseAction = SCNAction.sequence([
+            SCNAction.fadeOpacity(to: 0.15, duration: 2.0),
+            SCNAction.fadeOpacity(to: 0.08, duration: 2.0)
+        ])
+        platformNode?.runAction(SCNAction.repeatForever(pulseAction))
+
+        print("✨ Idle animation started")
+    }
 
     func setDiceCount(_ count: Int) {
         guard count >= 1 && count <= 2 else { return }
