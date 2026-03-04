@@ -27,6 +27,9 @@ build/
 # MCP
 .xcodebuildmcp/
 
+# Planning and summary files
+plan/
+
 # Temporary files
 *.swp
 *~.nib
